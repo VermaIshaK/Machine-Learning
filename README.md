@@ -1,9 +1,9 @@
 # Machine-Learning
 
-Group Members
-  <br>**Isha Verma (iv4274)**
-  <br> **Jyoti Kumari ()**
-  <br> **Anita Yadav (ay7997)** </br>
+Group Members:
+        <br>**Isha Verma (iv4274)**
+        <br> **Jyoti Kumari (jk52725)**
+        <br> **Anita Yadav (ay7997)** </br>
 
 <br>All the questions have been implemented in Python.</br>
 <br>The python notebook: **Unsupervised Learning Assignment_Isha_Jyoti_Anita.ipynb** is available here : https://github.com/VermaIshaK/Machine-Learning/blob/main/Python%20Notebook/ML_Assignment_Isha_Jyoti_Anita.ipynb </br>
