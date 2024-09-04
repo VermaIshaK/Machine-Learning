@@ -1,0 +1,840 @@
+---
+title: "Takehome_Assignment_Isha_Verma_iv4274"
+author: "Isha Verma"
+date: "2024-08-04"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  classoption: portrait
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+# 1. R and exploratory data analysis
+
+```{r, include=FALSE}
+library(ISLR2)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(pls)
+library(leaps)
+library(tree)
+library(caret)
+library(randomForest)
+library(gbm)
+library(BART)
+library(pls)
+library(glmnet)
+```
+
+#### a. How many rows are in this data set? How many columns? What do the rows and columns represent?
+
+```{r}
+
+data(Boston)
+print(paste("Number of rows: ", dim(Boston)[1]))
+print(paste("Number of columns: ",dim(Boston)[2]))
+print("ROWS : The Boston dataset provides insights on the housing prices in Boston based on different predictors.")
+print("COLUMNS : The columns in the Boston dataset are different factors that determine the housing prices in the Boston.")
+
+```
+
+#### b. Make some pairwise scatter plots of the predictors (columns) in this data set. Describe your findings.
+
+```{r}
+plot(~ dis + lstat, data = Boston)
+```
+
+**LSTAT \~ DIS : Observation** : The lower status population is higher in the places closer to the employment centers
+
+```{r}
+plot(~ dis + nox, data = Boston)
+
+```
+
+**NOX \~ DIS : Observation** :NOX concentration is higher in the area closer to the employment centers. This could be because an employment center might have a few factories resulting in higher NOX. Additionally, as per the graph plotted above, the population is higher in the areas near the employment center, again resulting in higher NOX.
+
+```{r}
+plot(~ rm + lstat, data = Boston)
+```
+
+**LSTAT \~ RM : Observation** : Higer the rm, more is the lstat
+
+```{r}
+plot(~ crim + tax, data = Boston)
+```
+
+**CRIM \~ TAX : Observation** : The crime rate is 0 where tax rates are lesser, however it increases with increase tax rate.
+
+```{r}
+plot(~ dis + crim, data = Boston)
+```
+
+**DIS \~ CRIM : Observation** : The per capita crime rate is very minimal in the distance near to the employment center.
+
+```{r}
+plot(~ lstat + medv, data = Boston)
+```
+
+**LSTAT \~ MEDV : Observation**: The lower status population and median value of owner occupied homes show a declining linear trend.
+
+```{r}
+plot(~ rm + medv, data = Boston)
+```
+
+**RM \~ MEDV : Observation**: The average number of rooms per dwelling increases if the homes are occupied by the owner.
+
+#### c. Are any of the predictors associated with per capita crime rate? If so, explain the relationship.
+
+```{r}
+plot(crim ~ tax, data = Boston)
+```
+**Higher tax rate, more crime**
+
+```{r}
+plot(crim ~ age, data = Boston)
+```
+**Crime rate increases for older unit built prior to 1940**
+
+```{r}
+plot(crim ~ dis, data = Boston)
+```
+**Crime rate is higher in the areas closer to the work areas**
+
+```{r}
+plot(crim ~ lstat, data = Boston)
+```
+
+**Crime rate is null/minimal where the majority of population belongs to lower status**
+```{r}
+plot(crim ~ rad, data = Boston)
+```
+**Higher index of accessibility to radial highways, more crime**
+
+```{r}
+plot(crim ~ zn, data = Boston)
+```
+
+**More crimes when proportion of residential land zoned for lots over 25,000 sq.ft. is 0**
+```{r}
+plot(crim ~ indus, data = Boston)
+```
+
+ **Crime rate increases when the proportion of non-retails business in between 15-20**
+
+
+#### d. Do any of the census tracts of Boston appear to have particularly high crime rates? Tax rates? Pupil-teacher ratios? Comment on the range of each predictor.
+
+```{r}
+#Crime Rates
+hist(Boston$crim, breaks=10, col="2")
+summary(Boston$crim)
+```
+
+##### Crime Rate
+
+The lowest crime rate observed in the data set is 0.00632 and the
+highest crime rate is 88.97620. The crime rate data is highly skewed
+towards right, indicating that the most areas have low to moderate crime
+rates and a few areas experiencing extremely high rates.
+
+
+```{r}
+#Tax Rates
+hist(Boston$tax, breaks=10, col="2")
+summary(Boston$tax)
+```
+
+##### Tax Rate
+
+The tax rate data shows a right-skewed distribution. The values lies
+between 187.0 and 711.0, with the mean (408.2) being higher than the
+median (330.0), indicating some higher values are pulling the mean up.
+
+```{r}
+#PTRatio
+hist(Boston$ptratio, breaks=10, col="2")
+summary(Boston$ptratio)
+
+```
+
+##### PT Ratio
+
+The Pupil-Teacher ratio data shows a fairly symmetrical distribution.
+The mean (18.46) and the median (19.05) are close, indicating a balanced
+dataset. Most values are clustered between the first quartile (17.40)
+and the third quartile (20.20), with the range spanning from 12.60 to
+22.00.
+
+
+#### e. How many of the census tracts in this data set bound the Charles river?
+
+```{r}
+sum(Boston$chas == 1)
+```
+
+Total **35** tracts in the dataset are bound to Charles river,
+
+#### f. What is the median pupil-teacher ratio among the towns in this data set?
+
+```{r}
+median(Boston$ptratio)
+```
+
+The median pupil-teacher ratio among the towns is : **19.05**
+
+#### g. Which census tract of Boston has lowest median value of owneroccupied homes? What are the values of the other predictors for that census tract, and how do those values compare to the overall ranges for those predictors? Comment on your findings.
+
+```{r}
+Boston[which.min(Boston$medv),]
+
+summary(Boston)
+
+```
+
+Row number 399, as shows in the above figure has the lowest median value of owner occupied home : **5**
+
+Predictors:
+
+***CRIM*** : Crime rate is very high as compared to median & average rates of all Boston neighborhood. ***ZN***: No residential land zoned for lots over 25,000 sq ft. ***INDUS***: Proportion of non-retail business acres per town is on a higher side. ***CHAS***: This suburb is not bounded by river. ***NOX***: The concentration of nitrogen oxide is higher in this suburb. ***RM***: The average number of rooms per dwelling is one of the lowest in this suburb. ***AGE***: The age of the owner occupied units built. ***DIS***: This suburb is very near to the five employment centers in Boston. ***TAX***: The property tax rate is on the higher end. ***PT-RATIO***: One of the highest pupil-teacher ratio in town. ***LSTAT***: One of the highest lower status population. 
+
+
+#### h. In this data set, how many of the census tracts average more than seven rooms per dwelling? More than eight rooms per dwelling? Comment on the census tracts that average more than eight rooms per dwelling.
+
+```{r}
+more_than_7_rooms <- sum(Boston$rm > 7)
+more_than_7_rooms
+
+more_than_8_rooms <- sum(Boston$rm > 8)
+more_than_8_rooms
+
+rm_over_8 <- subset(Boston, Boston$rm > 8)
+summary(rm_over_8)
+
+```
+
+Total **64** tracts average more than seven rooms per dwelling. 
+Total **13** tracts average more than eight rooms per dwelling.
+
+**Summary**: **medv** : The average number of rooms is approximately 8.35, with a median house value of \$48,300. **crim** : The crime rate is relatively low in most of the areas. **chas**: Most of the houses do not bound to the Charles River.\*\* tax\*\*: Tax rates vary significantly, from 224 to 666, with a mean of 325.1, indicating a broad range of property tax burdens.
+
+# 2. Linear Models
+
+#### a. For each predictor, fit a simple linear regression model to predict the response. Describe your results. In which of the models is there a statistically significant association between the predictor and the response? Create some plots to back up your assertions.
+
+```{r}
+lm_crim_zn <- lm(crim ~ zn , data = Boston)
+coef(summary(lm_crim_zn))
+
+ggplot(Boston, aes(x = zn, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+Since the p-value of the crim vs zn model is 0.05, meaning the chance of having a null hypothesis is very low. Therefore we conclude that **there is a statistically significant association between crim and zn.** 
+
+```{r}
+lm_crim_indus <- lm(crim ~ indus , data = Boston)
+coef(summary(lm_crim_indus))
+
+ggplot(Boston, aes(x = indus, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**There is a statistically significant relationship between the per capita and Indus**.This is because the p-value of the model is 2e-16 which is far less than 0.05
+
+```{r}
+lm_crim_chas <- lm(crim ~ chas , data = Boston)
+coef(summary(lm_crim_chas))
+
+ggplot(Boston, aes(x = chas, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+The p-value of the model is 0.209 which is must great than 0.05 and this means that the chances of having a null hypothesis are high and therefore **chas is not statistically significant.** The R-squared value of 0.003124 and Adjusted R squared value of 0.001146 are extremely low which continues to confirm that **there is no statistically significant association between per capita crime rate and chas.**
+
+```{r}
+lm_crim_nox <- lm(crim ~ nox , data = Boston)
+coef(summary(lm_crim_nox))
+
+ggplot(Boston, aes(x = nox, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+The 2e-16 p-value of the model is far less than 0.05 which makes **the relationship between per capita crime rate and nitrogen oxide concentration statistically significant.**
+
+```{r}
+lm_crim_rm <- lm(crim ~ rm , data = Boston)
+coef(summary(lm_crim_rm))
+
+ggplot(Boston, aes(x = rm, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**There is a statistically significant association between the per capita crime rate and the average number of rooms per dwelling(rm)** because of the p- of 6.35e-7 is smaller than 0.05. value. But this significance is low because of the low R squared value of 0.04807 and Adjusted R squared value of 0.04618.
+
+```{r}
+lm_crim_age <- lm(crim ~ age , data = Boston)
+coef(summary(lm_crim_age))
+
+ggplot(Boston, aes(x = age, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+Its clearly demonstrated in the figure above that **their exits a low positive relationship between per capita crime rate and age.**
+
+```{r}
+lm_crim_dis <- lm(crim ~ dis , data = Boston)
+coef(summary(lm_crim_dis))
+
+ggplot(Boston, aes(x = dis, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+Because of the small p-value of 2e-16, **there exists a statistically significant association between per capita crime rate and dis variable**. But we can also confirm that this association is quite small due to the low R squared value of 0.1441 and Adjusted R squared value of 0.1425.
+
+```{r}
+lm_crim_rad <- lm(crim ~ rad , data = Boston)
+coef(summary(lm_crim_rad))
+
+ggplot(Boston, aes(x = rad, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**There is a statistically significant association between the per capita crime rate and rad** because of the low p-value of 2e-16. This significance is small due to low R squared value of 0.3913 and Adjusted R squared value of 0.39
+
+```{r}
+lm_crim_tax <- lm(crim ~ tax , data = Boston)
+coef(summary(lm_crim_tax))
+
+ggplot(Boston, aes(x = tax, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**Between the per capita crime rate and tax, there is a statistically significant association**, and this due to the small p-value of 2e-16. Though this relationship is small due to low values of R squared and Adjusted R squared.
+
+```{r}
+lm_crim_ptratio <- lm(crim ~ ptratio , data = Boston)
+coef(summary(lm_crim_ptratio))
+
+ggplot(Boston, aes(x = ptratio, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**There a statistically significant association between per capita crime and ptratio** because of the model’s small p-value of 2.94e-11. But this relation is not much significant due to the low values of R squared and Adjusted R squared.
+
+```{r}
+lm_crim_lstat <- lm(crim ~ lstat , data = Boston)
+coef(summary(lm_crim_lstat))
+
+ggplot(Boston, aes(x = lstat, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+
+```
+
+The p-value of 2e-16 is way below the 0.05 and therefore we can conclude that **there is a statistically significant association between the per capita crime rate and lstat**. This significance is low due to small R squared value 0.2076 and Adjusted R squared value of 0.206.
+
+```{r}
+lm_crim_medv <- lm(crim ~ medv , data = Boston)
+coef(summary(lm_crim_medv))
+
+ggplot(Boston, aes(x = medv, y = crim)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**There is a statistically significant association between the per capita crime rate and medv** because of the small p-value of 2e-16. The R squared value of 0.1508 and Adjusted R squared value of 0.1491 are low which means the significance between the two variables is low.
+
+
+
+#### b. Fit a multiple regression model to predict the response using all of the predictors. Describe your results. For which predictors can we reject the null hypothesis H0 : βj = 0?
+
+```{r}
+lm_multi <- lm(crim ~ . , data = Boston)
+summary(lm_multi)
+```
+
+##### ANALYSiS:
+
+We can reject the null hypothesis for the predictors, for which p-value is less than a level of 0.05. In this case, we can reject the null hypothesis for the following predictors: ***ZN, DIS, RAD, BLACK, MEDV***
+
+The multiple regression model generally does not fit the Boston dataset very well because of the low R squared value of 0.454 and the Adjusted R squared value of 0.4396
+
+#### c. How do your results from (a) compare to your results from (b)? Create a plot displaying the univariate regression coefficients from (a) on the x-axis, and the multiple regression coefficients from (b) on the y-axis. That is, each predictor is displayed as a single point in the plot. Its coefficient in a simple linear regression model is shown on the x-axis, and its coefficient estimate in the multiple linear regression model is shown on the y-axis.
+
+```{r}
+univeriate_reg <- vector("numeric",0)
+univeriate_reg <- c(univeriate_reg, lm_crim_zn$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_indus$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_chas$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_nox$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_rm$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_age$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_dis$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_rad$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_tax$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_ptratio$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_lstat$coefficient[2])
+univeriate_reg <- c(univeriate_reg, lm_crim_medv$coefficient[2])
+
+print(univeriate_reg)
+```
+
+```{r}
+multiple_reg <- vector("numeric", 0)
+multiple_reg <- c(multiple_reg, lm_multi$coefficients)
+multiple_reg <- multiple_reg[-1]
+print(multiple_reg)
+```
+
+```{r}
+plot(univeriate_reg, multiple_reg, col = "blue",pch =19, ylab = "multiple regression coefficients",
+     xlab = "Univariate Regression coefficients")
+
+```
+
+#### d. Is there evidence of non-linear association between any of the predictors and the response? To answer this question, for each predictor X, fit a model of the form $$ Y = \beta_0 + \beta_1X + \beta_2X^2 + \beta_3X^3 + \epsilon $$
+
+```{r}
+poly_zn = lm(crim ~ cbind(zn , zn^2, zn^3), data = Boston)
+coef(summary(poly_zn))
+```
+
+```{r}
+poly_indus <- lm(crim ~ cbind(indus , indus^2, indus^3), data = Boston)
+coef(summary(poly_indus))
+```
+
+```{r}
+poly_chas <- lm(crim ~ cbind(chas , chas^2, chas^3), data = Boston)
+coef(summary(poly_chas))
+```
+
+```{r}
+poly_nox <- lm(crim ~ cbind(nox , nox^2, nox^3), data = Boston)
+coef(summary(poly_nox))
+```
+
+```{r}
+poly_rm <- lm(crim ~ cbind(rm , rm^2, rm^3), data = Boston)
+coef(summary(poly_rm))
+```
+
+```{r}
+poly_age <- lm(crim ~ cbind(age , age^2, age^3), data = Boston)
+coef(summary(poly_age))
+```
+
+```{r}
+poly_dis <- lm(crim ~ cbind(dis , dis^2, dis^3), data = Boston)
+coef(summary(poly_dis))
+```
+
+```{r}
+poly_rad <- lm(crim ~ cbind(rad , rad^2, rad^3), data = Boston)
+coef(summary(poly_rad))
+```
+
+```{r}
+poly_tax <- lm(crim ~ cbind(tax , tax^2, tax^3), data = Boston)
+coef(summary(poly_tax))
+```
+
+```{r}
+poly_ptratio <- lm(crim ~ cbind(ptratio , ptratio^2, ptratio^3), data = Boston)
+coef(summary(poly_ptratio))
+```
+
+```{r}
+poly_lstat <- lm(crim ~ cbind(lstat , lstat^2, lstat^3), data = Boston)
+coef(summary(poly_lstat))
+```
+
+```{r}
+poly_medv <- lm(crim ~ cbind(medv , medv^2, medv^3), data = Boston)
+coef(summary(poly_medv))
+```
+
+##### ANALYSIS: 
+As per the summary of coefficients, the following predictor seems to have non-linear association with the response: ***indus, chas, nox, age, dis, ptratio, black, medv***
+
+
+# 3. Shrinkage and selection in linear models:
+
+#### a. Try out some of the regression methods explored in this chapter, such as best subset selection, the lasso, ridge regression, and PCR. Present and discuss results for the approaches that you consider.
+
+```{r}
+data(Boston)
+
+set.seed(123)
+train_ix = createDataPartition(Boston$crim, p = 0.8)
+
+train_data = Boston[train_ix$Resample1,]
+test_data = Boston[-train_ix$Resample1,]
+
+model_matrix <- model.matrix(crim ~ ., train_data)[, -1]
+model_response <- train_data$crim
+
+model_matrix_test <- model.matrix(crim ~ ., test_data)[, -1]
+model_response_test <- test_data$crim
+
+```
+
+##### Best Subset Selection
+
+```{r}
+
+regfit_full <- regsubsets(crim ~ ., data = train_data, nvmax = 12)
+regfit_full_summary <- summary(regfit_full)
+
+best_num_vars <- which.max(regfit_full_summary$adjr2)
+best_vars <- names(train_data)[which(regfit_full_summary$which[best_num_vars, ])]
+best_vars <- best_vars[-1]  # Remove the intercept
+
+# Fit a linear model using the best subset of variables
+best_formula <- as.formula(paste("crim ~", paste(best_vars, collapse = " + ")))
+best_model <- lm(best_formula, data = train_data)
+
+# Predict on the test set using the best subset model
+test_predictions <- predict(best_model, newdata = test_data)
+
+# Calculate RMSE
+subset_selection_rmse <- sqrt(mean((test_data$crim - test_predictions)^2))
+cat("BEST SUBSET Test RMSE:", subset_selection_rmse, "\n")
+```
+
+##### Ridge Regression
+
+```{r}
+grid <- 10^seq(10, -2, length = 100)
+
+
+ridge_model_cv <- cv.glmnet(model_matrix, model_response, alpha = 0, lambda = grid, thresh = 1e-12)
+best_lambda <- ridge_model_cv$lambda.min
+ridge_model <- glmnet(model_matrix, model_response, alpha = 0, lambda = best_lambda, thresh = 1e-12)
+
+ridge_predict <- predict(ridge_model, s = best_lambda, newx = model_matrix_test)
+
+ridge_rmse <- sqrt(mean((model_response_test - ridge_predict)^2))
+cat("RIDGE Test RMSE:", ridge_rmse, "\n")
+
+
+```
+
+##### Lasso Regression
+
+```{r}
+
+lasso_model_cv <- cv.glmnet(model_matrix, model_response, alpha = 1, lambda = grid)
+best_lambda <- lasso_model_cv$lambda.min
+lasso_model <- glmnet(model_matrix, model_response, alpha = 1, lambda = best_lambda)
+
+lasso_predict <- predict(lasso_model , s = best_lambda , newx = model_matrix_test)
+lasso_rmse <- sqrt(mean((lasso_predict - model_response_test)^2))
+
+cat("LASSO Test RMSE:", lasso_rmse, "\n")
+
+```
+
+##### PCR
+
+```{r}
+pcr_model <- pcr(crim ~ ., data = train_data, scale = TRUE, validation = "CV")
+#summary(pcr_model)
+pcr_predictions <- predict(pcr_model, ncomp = which.min(pcr_model$validation$PRESS), newdata = test_data)
+
+# Evaluate PCR
+pcr_rmse <- sqrt(mean((test_data$crim - pcr_predictions)^2))
+cat("PCR RMSE:", pcr_rmse, "\n")
+```
+
+#### b. Propose a model (or set of models) that seem to perform well on this data set, and justify your answer. Make sure that you are evaluating model performance using validation set error, crossvalidation, or some other reasonable alternative, as opposed to using training error.
+
+##### Response:
+Based on the RMSE values, **PCR** model is the nest recommended bottle because of its least RMSE value.
+
+#### c. Does your chosen model involve all of the features in the dataset? Why or why not?
+
+##### Response:
+**Best Subset Selection:** Uses a subset of features. **Ridge Regression:** Uses all features. **Lasso Regression:** May use a subset of features (some may be excluded). **PCR:** Uses all features, transformed into components.
+
+
+
+# 4. Regression Trees:
+
+```{r}
+housing_data <- read.csv("austinhouses.csv")
+housing_data <- housing_data[, c('latitude', 'longitude', 
+                                           'hasAssociation', 'livingAreaSqFt', 
+                                           'numOfBathrooms', 'numOfBedrooms', 'latestPrice' )]
+```
+
+#### a. Split the data set into a training set and a test set.
+
+```{r}
+
+set.seed(1234)
+
+# Hold out 20% of the data as a final validation set
+train_index = createDataPartition(housing_data$latestPrice,p = 0.8)
+
+train_data = housing_data[train_index$Resample1,]
+
+View(train_data)
+test_data  = housing_data[-train_index$Resample1,]
+
+```
+
+#### b. Fit a regression tree to the training set. Plot the tree, and interpret the results. What test MSE do you obtain?
+
+```{r}
+
+
+tree <- tree(log(latestPrice) ~ ., data = train_data)
+big_tree_length <- length(unique(tree$where))
+
+summary(tree)
+plot(tree)
+text(tree , cex=0.6)
+
+yhat <- exp(predict(tree , newdata = test_data))
+reg_tree_test_mse <- mean((yhat - test_data$latestPrice)^2)
+
+cat('\nLength of fully grown tree::', big_tree_length, '\n')
+cat('MSE for Regression Tree::', reg_tree_test_mse, '\n' )
+```
+
+##### Observations
+1.The fully grown tree has 10 splits. 
+2.The variables used to create the tree are:**livingAreaSqFt,longitude,latitude,hasAssociation,numOfBathrooms** 
+3.Test MSE: **63631.24**
+
+#### c. Use cross-validation in order to determine the optimal level of tree complexity. Does pruning the tree improve the test MSE?
+
+```{r}
+cv_tree <- cv.tree(tree)
+plot(cv_tree$size , cv_tree$dev, type = "b")
+
+optimal_size <- which.min(cv_tree$size)
+    
+prune_tree <- prune.tree(tree , best = optimal_size)
+plot(prune_tree)
+text(prune_tree , cex=0.6)
+
+yhat <- exp(predict(prune_tree , newdata = test_data))
+prune_tree_test_mse <- mean((yhat - test_data$latestPrice)^2)
+
+cat('\nMSE for Pruned Tree::', prune_tree_test_mse, '\n')
+cat('Optimal Level of Complexity::', optimal_size, '\n')
+```
+
+##### Observations
+1. The Test MSE did not improve with the pruning of trees.In fact it increases to **64048.42** 
+2. The optimal level fit obtained through cross validation is 10
+
+
+#### d. Use the bagging approach in order to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important.
+
+```{r}
+
+set.seed(1234)
+
+#Setting mtry to 6, i.e. the equivalent number of predictors available in our dataset.
+bagging_tree <- randomForest(log(latestPrice)~., 
+                                 train_data, mtry = 6, 
+                                 importance=TRUE)
+plot(bagging_tree)
+
+```
+
+```{r}
+
+yhat_bag <- exp(predict(bagging_tree, test_data))
+bagging_test_mse <- mean((yhat_bag - test_data$latestPrice)^2)
+
+cat("\nBagging Test MSE:", bagging_test_mse, '\n')
+
+var_importance <- importance(bagging_tree)
+var_importance
+
+
+```
+
+#####Observations:
+* 1. The TEST MSE for Bagging has reduced to : **33561.03** 
+2. The 4 most important variables for the Bagging model are: **Latitude, Longitude, livingAreaSqFt, hasAssociation**
+
+**BAGGING seems to be the best model when compared to others implemented**
+
+
+#### e. Use random forests to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important. Describe the effect of m, the number of variables considered at each split, on the error rate obtained.
+
+```{r}
+
+for (m in 1:5){
+  rf_tree <- randomForest(log(latestPrice)~., 
+                                  train_data, 
+                                  mtry = m, 
+                                  importance=TRUE)
+  
+  yhat_rf <- exp(predict(rf_tree, test_data))
+  rf_test_mse <- mean((yhat_rf - test_data$latestPrice)^2)
+  
+  var_importance <- importance(rf_tree)
+  
+  cat('\n m:', m , '|| MSE :', rf_test_mse, '\n')
+ }
+
+var_importance
+
+```
+
+##### Observations
+1. The Test MSE value decreases significantly with increase in the mtry(m) value. 
+2. Lowest TEST RMSE is *34071.18* at mtry of *5* 
+3. The 4 most important variables for the Random Forest is: **latitude,longitude, livingAreaSqFt, hasAssociation**
+
+
+#### f. Now analyze the data using BART, and report your results.
+
+```{r}
+x_train <- train_data[, 1:6]
+y_train <- log(train_data$latestPrice)
+x_test <- test_data[, 1:6]
+y_test <- log(test_data$latestPrice)
+
+```
+
+```{r}
+set.seed(123)
+bartfit <- gbart(x_train , y_train , x.test = x_test)
+```
+
+```{r}
+yhat_bart <- bartfit$yhat.test.mean
+mean((exp(y_test) - exp(yhat_bart))^2)
+
+ord <- order(bartfit$varcount.mean , decreasing = T)
+bartfit$varcount.mean[ord]
+```
+
+##### Observations 
+1. The TEST MSE for the BART model is **38645.99**. This model did not outperform Bagging/Random Forest, based on their MSE value. 
+2. The 4 most important variables for this model is: **Latitude,Longitude, LivingAreaSqFt, numOfBathrooms**
+
+
+# 5. R and exploratory data analysis
+
+#### a.Create a training set consisting of the first 1,000 observations,and a test set consisting of the remaining observations.
+
+```{r}
+data(Caravan)
+
+train_data <- Caravan[1:1000, ]
+test_data  <- Caravan[1001:nrow(Caravan), ]
+
+no_variation_vars <- which(sapply(train_data, function(x) length(unique(x)) == 1))
+
+train_data <- train_data[, -no_variation_vars]
+test_data <- test_data[, -no_variation_vars]
+
+```
+
+#### b. Fit a boosting model to the training set with Purchase as the response and the other variables as predictors. Use 1,000 trees, and a shrinkage value of 0.01. Which predictors appear to be the most important?
+
+```{r}
+set.seed(18)
+
+gbm_grid <-  expand.grid(interaction.depth = c(1,2,3), 
+                         n.trees = 1000,
+                         shrinkage = 0.01,
+                         n.minobsinnode = 10)
+
+gbmfit <- train(Purchase ~ .,data=train_data, method = "gbm", tuneGrid = gbm_grid, verbose = FALSE)
+gbm_imp  = varImp(gbmfit)
+
+summary(gbmfit)
+print(gbm_imp) 
+
+```
+
+The few most important predictors are : *PPERSAUT, MKOOPKLA, MOPLHOOG, MBERMIDD, PBRAND*
+
+#### c. Use the boosting model to predict the response on the test data.Predict that a person will make a purchase if the estimated probability of purchase is greater than 20%. Form a confusion matrix.What fraction of the people predicted to make a purchase do in fact make one? How does this compare with the results obtained.
+
+##### Probability prediction : Boosting Model
+
+```{r}
+
+gbm_probs <- predict(gbmfit, newdata = test_data, type = "prob")[,2]
+
+# 2. Classify the predictions based on the threshold of 20%
+threshold <- 0.20
+test_data$predicted_class <- ifelse(gbm_probs > threshold, "Yes", "No")
+
+# 3. Create a confusion matrix
+confusion_matrix <- table(test_data$predicted_class, test_data$Purchase)
+print(confusion_matrix)
+
+```
+
+##### Implementing LOGISTIC REGRESSION
+
+```{r}
+
+glm_fits <- glm(Purchase ~ . , data = train_data , family = binomial)
+
+glm_probs <- predict(glm_fits, newdata=test_data, type = "response")
+threshold <- 0.20
+
+test_data$predicted_class <- ifelse(glm_probs > threshold, 1, 0)
+
+confusion_matrix <- table(test_data$predicted_class, test_data$Purchase)
+print(confusion_matrix)
+
+```
+
+#####BOOSTING
+
+Accuracy: ***0.92*** 
+True Positive Rate : *0.11* 
+False Positive Rate: **0.02**
+Precision: **0.21**
+Negative Predicted Value: **0.94**
+About **21.85%** of people predicted to make a purchase actually make one.
+
+#####LOGISTIC REGRESSION
+
+Accuracy: **0.87** 
+True Positive Rate : **0.20**
+False Positive Rate: **0.77**
+Precision: **0.14**
+Negative Predicted Value: **0.94**
+About **14.22%** of people predicted to make a purchase actually make one.
+
+#####Observation
+The boosting model has a higher precision and higher overall accuracy, meaning a higher fraction of all its predictions are correct. However, the logistic model has higher true positive rate, meaning it correctly identifies a higher fraction of actual positives.

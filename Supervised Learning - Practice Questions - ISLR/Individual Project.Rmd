@@ -1,0 +1,270 @@
+---
+title: "Individual Project"
+author: "Isha Verma"
+date: "2024-08-04"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r, include=FALSE}
+
+library(caret)
+library(dplyr)
+library(randomForest)
+library(BART)
+library(tree)
+library(gbm)
+library(caret)
+```
+
+```{r}
+
+# Reading the dataset and removing the unwanted columns
+housing_data <- read.csv("austinhouses.csv")
+housing_data <- housing_data %>%
+      select(-streetAddress, -description)
+
+
+# Reading the hold-out dataset and removing the unwanted columns
+holdout_data <- read.csv("austinhouses_holdout.csv")
+holdout_data <- holdout_data %>%
+      select(-streetAddress, -description)
+
+```
+
+#### 1. a. Begin by verifying that each of these variables are appropriate to include as predictors. If any are not, explain why.
+
+The following variables might not be necessary as predictors: Although the average distance to good schools can impact the house prices, the school rating, culture, or size are less relevant. Therefore, these two variables are not suitable for prediction: **MedianStudentsPerTeacher**, **avgSchoolSize**
+
+**homeType** : This categorical value can be ignored since the number of bedrooms and bathrooms already provides sufficient information about the suitable family size for the house.
+
+**numOfPhotos** : The number of photos does not really affect the latest price of the house, as these are just for reference purposes.
+
+**hasGarage** : We have a numerical columns - garageSpaces - that would affect the house prices, hence hasGarage column being a categorical variable, is not necessarily required.
+
+**latest_saledate** : Since we already have the latest sale year and month details with us, the exact sale date won't really matter as the former 2 variable would be enough to perform predictions.
+
+
+#### 1. b. Consider how each of these should enter your models. For example, are there numeric columns that correspond to categorical variables? Would it make sense to aggregate or recode any of the categorical variables to define new variables? Would it make sense to combine or transform any of the variables at this stage, based on what you know about the housing market?
+
+
+**Based on the reasons described in part a,dropping of those columns from the dataset.**
+```{r}
+
+#Removing the columns based on above defined analysis, from both the dataset
+
+cleaned_housing_data <- housing_data %>%
+  select(-MedianStudentsPerTeacher, -avgSchoolSize, -homeType, -numOfPhotos, -hasGarage, -latest_saledate)
+
+holdout_data <- holdout_data %>%
+  select(-MedianStudentsPerTeacher, -avgSchoolSize, -homeType, -numOfPhotos, -hasGarage, -latest_saledate)
+
+ 
+```
+
+**Converting all the categorical variables to numerical**
+```{r}
+
+#If True, set 1
+#If False, set 0
+
+cleaned_housing_data$hasSpa <- ifelse(cleaned_housing_data$hasSpa, 1, 0)
+cleaned_housing_data$hasView <- ifelse(cleaned_housing_data$hasView, 1, 0)
+cleaned_housing_data$hasAssociation <- ifelse(cleaned_housing_data$hasAssociation, 1, 0)
+
+holdout_data$hasSpa <- ifelse(holdout_data$hasSpa, 1, 0)
+holdout_data$hasView <- ifelse(holdout_data$hasView, 1, 0)
+holdout_data$hasAssociation <- ifelse(holdout_data$hasAssociation, 1, 0)
+```
+
+
+```{r}
+```
+
+**Age of house is one of the parameter that would remarkably affect the house prices, This age can be determined using the yearBuilt column. Creating a new columns for houseAge, and later dropping of yearBuilt column as it would no longer be required.**
+```{r}
+
+current_year <- as.numeric(format(Sys.Date(), "%Y"))
+
+cleaned_housing_data <- cleaned_housing_data %>%
+  mutate(houseAge = current_year - yearBuilt)
+
+cleaned_housing_data <- cleaned_housing_data %>%
+  select(-yearBuilt)
+
+
+holdout_data <- holdout_data %>%
+  mutate(houseAge = current_year - yearBuilt)
+
+holdout_data <- holdout_data %>%
+  select(-yearBuilt)      
+```
+
+```{r}
+
+#Moving the latestPrice column to right most side.
+
+cleaned_housing_data <- cleaned_housing_data %>%
+  select(-latestPrice, everything(), latestPrice)
+
+holdout_data <- holdout_data %>%
+  select(-latestPrice, everything(), latestPrice)
+```
+
+
+```{r}
+
+head(cleaned_housing_data)
+
+head(holdout_data)
+```
+
+
+##### 2. Repeat take-home problem 3 with the expanded set of variables. How does your estimated out of sample prediction error change for each of the methods? (Make sure you use the same training/testing split.)
+
+```{r}
+
+set.seed(1234)
+
+# Hold out 20% of the data as a final validation set
+train_index = createDataPartition(housing_data$latestPrice,p = 0.8)
+
+train_data = cleaned_housing_data[train_index$Resample1,]
+test_data  = cleaned_housing_data[-train_index$Resample1,]
+
+```
+
+
+#Regression Tree
+```{r}
+
+tree <- tree(log(latestPrice) ~ ., data = train_data)
+big_tree_length <- length(unique(tree$where))
+
+summary(tree)
+plot(tree)
+text(tree , cex=0.6)
+
+yhat <- exp(predict(tree , newdata = test_data))
+reg_tree_test_mse <- mean((yhat - test_data$latestPrice)^2)
+
+cat('\nLength of fully grown tree::', big_tree_length, '\n')
+cat('MSE for Regression Tree::', reg_tree_test_mse, '\n' )
+
+
+```
+
+**Prediction Error Change for REGRESSION TREE** : 
+Earlier: **63631.24**
+Now: **54703.17**
+
+#Pruning Tree
+```{r}
+cv_tree <- cv.tree(tree)
+plot(cv_tree$size , cv_tree$dev, type = "b")
+
+optimal_size <- which.min(cv_tree$size)
+    
+prune_tree <- prune.tree(tree , best = optimal_size)
+plot(prune_tree)
+text(prune_tree , cex=0.6)
+
+yhat <- exp(predict(prune_tree , newdata = test_data))
+prune_tree_test_mse <- mean((yhat - test_data$latestPrice)^2)
+
+cat('\nMSE for Pruned Tree::', prune_tree_test_mse, '\n')
+cat('Optimal Level of Complexity::', optimal_size, '\n')
+```
+
+**Prediction Error Change for PRUNED TREE** : 
+Earlier: **64048.42**
+Now: **54703.17**
+
+#Bagging
+```{r}
+
+set.seed(1234)
+
+#Setting mtry to 25, i.e. the equivalent number of predictors available in our dataset.
+bagging_tree <- randomForest(log(latestPrice)~., 
+                                 train_data, mtry = 25, 
+                                 importance=TRUE)
+plot(bagging_tree)
+```
+
+```{r}
+yhat_bag <- exp(predict(bagging_tree, test_data))
+bagging_test_mse <- mean((yhat_bag - test_data$latestPrice)^2)
+
+cat("\nBagging Test MSE:", bagging_test_mse, '\n')
+
+```
+**Prediction Error Change for BAGGING** : 
+Earlier: **33561.03**
+Now: **32504.94**
+
+#Random Forest
+```{r}
+
+for (m in 1:24){
+  rf_tree <- randomForest(log(latestPrice)~., 
+                                  train_data, 
+                                  mtry = m, 
+                                  importance=TRUE)
+  
+  yhat_rf <- exp(predict(rf_tree, test_data))
+  rf_test_mse <- mean((yhat_rf - test_data$latestPrice)^2)
+  
+  cat('\n m:', m , '|| MSE :', rf_test_mse, '\n')
+}
+
+```
+
+**Prediction Error Change for RANDOM FOREST** : 
+Earlier: *34071.18* at mtry of *5*
+Now: *30982.9* at mtry of *22*
+
+
+#BART
+
+```{r}
+
+
+x_train <- train_data[, 1:25]
+y_train <- log(train_data$latestPrice)
+
+x_test <- test_data[, 1:25]
+y_test <- log(test_data$latestPrice)
+head(x_train)
+
+set.seed(1234)
+bartfit <- gbart(x_train , y_train , x.test = x_test)
+
+yhat_bart <- bartfit$yhat.test.mean
+bart_test_mse <- mean((exp(y_test) - exp(yhat_bart))^2)
+
+cat("\nBART Test MSE:", bart_test_mse, '\n')
+```
+
+**Prediction Error Change for BART** : 
+Earlier: **38645.99**
+Now: **32424.84**
+
+
+##### 3. PREDICTION CONTEST
+
+```{r}
+
+# Since our best model in Random Forst at the mtry of 22, re-build the same model with the fixed Mtry and predict the value
+final_rf_model <- randomForest(log(latestPrice) ~ .,
+                                train_data,
+                                mtry = 22,
+                                importance = TRUE)
+
+# Predict on the test set using the final model
+predictedValue <- exp(predict(final_rf_model, holdout_data))
+#predicted_values <- test_data[, c("predictedValue")]
+write.csv(predictedValue, "predicted_values.csv", row.names = FALSE)
+```
+
